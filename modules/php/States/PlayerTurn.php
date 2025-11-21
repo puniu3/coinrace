@@ -3,7 +3,7 @@
 /**
  * PlayerTurn - プレイヤーターン状態
  *
- * プレイヤーがカードをプレイするか、パスする状態
+ * プレイヤーがコインを引く状態
  */
 
 declare(strict_types=1);
@@ -15,133 +15,84 @@ use Bga\GameFramework\States\GameState;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
 use Bga\Games\CoinRace\Game;
+use Bga\Games\CoinRace\Core\DrawAction;
+use Bga\Games\CoinRace\Core\GameLogic;
+use Bga\Games\CoinRace\Core\CoinAcquired;
 
 class PlayerTurn extends GameState
 {
-    // 定数定義
     private const STATE_ID = 10;
-    private const SCORE_PER_CARD = 1;
-    private const ENERGY_PER_PASS = 1;
 
-    /**
-     * コンストラクタ
-     *
-     * @param Game $game ゲームインスタンス
-     */
     public function __construct(protected Game $game)
     {
         parent::__construct(
             $game,
             id: self::STATE_ID,
             type: StateType::ACTIVE_PLAYER,
-            description: clienttranslate('${actplayer} must play a card or pass'),
-            descriptionMyTurn: clienttranslate('${you} must play a card or pass'),
+            description: clienttranslate('${actplayer} must draw a coin'),
+            descriptionMyTurn: clienttranslate('${you} must draw a coin'),
         );
     }
 
-    /**
-     * ゲーム状態の引数を取得
-     *
-     * この状態で必要な情報を返す（プレイ可能なカードIDなど）
-     *
-     * @return array 状態引数
-     */
     public function getArgs(): array
     {
-        // TODO: データベースから現在のゲーム状況を取得
-        // 例: プレイヤーの手札、プレイ可能なカードなど
-
-        return [
-            'playableCardsIds' => [1, 2],
-        ];
+        // Viewに必要な情報はgetAllDatasやNotificationで送るため、ここは空でも良いが、
+        // 必要に応じて追加情報を返す
+        return [];
     }
 
     /**
-     * カードをプレイするアクション
-     *
-     * フロントエンドの bgaPerformAction("actPlayCard") から呼び出される
-     *
-     * @param int $card_id プレイするカードID
-     * @param int $activePlayerId アクティブプレイヤーID
-     * @param array $args 状態引数（getArgs()の戻り値）
-     * @return string 次の状態クラス名
-     * @throws UserException 無効なカード選択時
+     * コインを引くアクション
      */
     #[PossibleAction]
-    public function actPlayCard(int $card_id, int $activePlayerId, array $args): string
+    public function actDraw(int $activePlayerId): string
     {
-        // 入力値の検証
-        $playableCardsIds = $args['playableCardsIds'];
-        if (!in_array($card_id, $playableCardsIds, strict: true)) {
-            throw new UserException('Invalid card choice');
+        // 1. Load State
+        $state = $this->game->loadState();
+
+        // Check if active player matches
+        $expectedIndex = $state->active;
+        $actualIndex = $this->game->mapPlayerIdToIndex($activePlayerId);
+
+        if ($expectedIndex !== $actualIndex) {
+             throw new UserException("It is not your turn (Internal State Mismatch)");
         }
 
-        // カード名を取得
-        $card_name = Game::$CARD_TYPES[$card_id]['card_name'];
+        // 2. Execute Action via Functional Core
+        $action = new DrawAction();
+        $nextState = GameLogic::advance($state, $action);
 
-        // TODO: カードをプレイするゲームロジックを実装
-        // 例: カードを手札から場に移動、効果を適用など
+        // 3. Save State
+        $this->game->saveState($nextState);
 
-        // 全プレイヤーに通知
-        $this->notify->all('cardPlayed', clienttranslate('${player_name} plays ${card_name}'), [
-            'player_id' => $activePlayerId,
-            'player_name' => $this->game->getPlayerNameById($activePlayerId),
-            'card_name' => $card_name,
-            'card_id' => $card_id,
-            'i18n' => ['card_name'],
-        ]);
+        // 4. Handle Messages / Notifications
+        foreach ($nextState->msg as $msg) {
+            if ($msg instanceof CoinAcquired) {
+                // Update BGA Score
+                // メッセージに含まれる player_id は index なので変換が必要
+                $playerId = $this->game->mapIndexToPlayerId($msg->player_id);
+                $this->game->dbIncScore($playerId, $msg->amount);
 
-        // スコア加算（この例ではカード1枚につき1点）
-        $this->playerScore->inc($activePlayerId, self::SCORE_PER_CARD);
+                $this->notify->all('coinAcquired', clienttranslate('${player_name} draws a coin with value ${amount}'), [
+                    'player_id' => $playerId,
+                    'player_name' => $this->game->getPlayerNameById($playerId),
+                    'amount' => $msg->amount,
+                    'deck_size' => count($nextState->deck),
+                    'new_score' => $nextState->players[$msg->player_id], // FCのStateが最新スコアを持っている
+                ]);
+            }
+        }
 
-        // 次の状態へ遷移
-        return NextPlayer::class;
-    }
-
-    /**
-     * パスアクション
-     *
-     * フロントエンドの bgaPerformAction("actPass") から呼び出される
-     *
-     * @param int $activePlayerId アクティブプレイヤーID
-     * @return string 次の状態クラス名
-     */
-    #[PossibleAction]
-    public function actPass(int $activePlayerId): string
-    {
-        // 全プレイヤーに通知
-        $this->notify->all('pass', clienttranslate('${player_name} passes'), [
-            'player_id' => $activePlayerId,
-            'player_name' => $this->game->getPlayerNameById($activePlayerId),
-        ]);
-
-        // エネルギー加算（この例ではパス1回につき1エネルギー）
-        $this->game->playerEnergy->inc($activePlayerId, self::ENERGY_PER_PASS);
-
-        // 次の状態へ遷移
+        // 5. Transition
         return NextPlayer::class;
     }
 
     /**
      * ゾンビモード処理
-     *
-     * プレイヤーが切断した場合の自動処理
-     *
-     * 重要: getCurrentPlayerId() は使用しない
-     * 　　　引数の $playerId を使用すること
-     *
-     * @param int $playerId ゾンビプレイヤーのID
-     * @return string 次の状態クラス名
-     * @see https://en.doc.boardgamearena.com/Zombie_Mode
      */
     public function zombie(int $playerId): string
     {
-        // ゾンビレベル0: 単純にパスする
-        // return $this->actPass($playerId);
-
-        // ゾンビレベル1: ランダムにカードを選択してプレイ
-        $args = $this->getArgs();
-        $zombieChoice = $this->getRandomZombieChoice($args['playableCardsIds']);
-        return $this->actPlayCard($zombieChoice, $playerId, $args);
+        // 自動的にドローする
+        return $this->actDraw($playerId);
     }
 }

@@ -12,135 +12,76 @@ declare(strict_types=1);
 
 namespace Bga\Games\CoinRace;
 
+// Import GameLogic manually since BGA autoloader might not pick it up for Core namespace
+require_once(__DIR__ . '/GameLogic.php');
+
 use Bga\Games\CoinRace\States\PlayerTurn;
-use Bga\GameFramework\Components\Counters\PlayerCounter;
+use Bga\Games\CoinRace\Core\GameLogic;
+use Bga\Games\CoinRace\Core\State;
 
 class Game extends \Bga\GameFramework\Table
 {
-    // 定数定義
-    private const DEFAULT_PLAYER_ENERGY = 2;
     private const GAME_END_STATE = 99;
-    private const DEFAULT_DEBUG_STATE = 3;
+    private const DEFAULT_DEBUG_STATE = 10;
     private const DEFAULT_AUTO_PLAY_MOVES = 50;
-
-    // カードタイプ定義
-    public static array $CARD_TYPES;
-
-    // プレイヤーエネルギーカウンター
-    public PlayerCounter $playerEnergy;
 
     /**
      * コンストラクタ
-     * ゲーム状態ラベル、カウンター、カードタイプを初期化
      */
     public function __construct()
     {
         parent::__construct();
 
-        // ゲーム状態ラベルの初期化（空でも必須）
+        // ゲーム状態ラベルの初期化
         $this->initGameStateLabels([]);
-
-        // プレイヤーエネルギーカウンターの作成
-        $this->playerEnergy = $this->counterFactory->createPlayerCounter('energy');
-
-        // カードタイプの定義
-        self::$CARD_TYPES = [
-            1 => ['card_name' => clienttranslate('Troll')],
-            2 => ['card_name' => clienttranslate('Goblin')],
-        ];
-
-        // 通知デコレーター（任意）
-        // プレイヤー名やカード名を自動補完する場合に有効化
-        /*
-        $this->notify->addDecorator(function(string $message, array $args) {
-            if (isset($args['player_id']) && !isset($args['player_name']) && str_contains($message, '${player_name}')) {
-                $args['player_name'] = $this->getPlayerNameById($args['player_id']);
-            }
-
-            if (isset($args['card_id']) && !isset($args['card_name']) && str_contains($message, '${card_name}')) {
-                $args['card_name'] = self::$CARD_TYPES[$args['card_id']]['card_name'];
-                $args['i18n'][] = 'card_name';
-            }
-
-            return $args;
-        });
-        */
     }
 
     /**
      * ゲーム進行度を計算（0～100%）
-     *
-     * updateGameProgression = true の状態で自動的に呼び出される
-     *
-     * @return int 進行度（0～100）
      */
     public function getGameProgression(): int
     {
-        // TODO: ゲーム進行度の計算ロジックを実装
-        return 0;
+        $state = $this->loadState();
+        $total = 10; // 初期デッキサイズ
+        $current = count($state->deck);
+        return (int) (($total - $current) / $total * 100);
     }
 
     /**
      * データベーススキーマのマイグレーション
-     *
-     * ゲームが公開された後、スキーマ変更時に使用
-     *
-     * @param int $from_version 移行元のバージョン番号
      */
     public function upgradeTableDb($from_version): void
     {
-        // 例: バージョン1404301345以前からのマイグレーション
-        // if ($from_version <= 1404301345) {
-        //     $sql = "ALTER TABLE `DBPREFIX_xxxxxxx` ADD COLUMN ...";
-        //     $this->applyDbUpgradeToAllDB($sql);
-        // }
     }
 
     /**
      * 現在のゲーム状況を取得
-     *
-     * ゲーム画面表示時（開始時、リフレッシュ時）に呼び出される
-     * 現在のプレイヤーから見える情報のみを返す
-     *
-     * @return array ゲームデータ
      */
     protected function getAllDatas(): array
     {
         $result = [];
-        $current_player_id = (int) $this->getCurrentPlayerId();
 
-        // プレイヤー情報を取得（dbmodel.sqlで追加したフィールドも取得可能）
+        // BGA標準のプレイヤー情報
         $result['players'] = $this->getCollectionFromDb(
             "SELECT `player_id` `id`, `player_score` `score` FROM `player`"
         );
 
-        // プレイヤーエネルギーを結果に追加
-        $this->playerEnergy->fillResult($result);
+        // Functional Coreの状態を取得
+        $fcState = $this->loadState();
 
-        // TODO: その他のゲーム状況データを追加
-        // 例: カード、ボード状態など（$current_player_idから見える情報のみ）
+        // View情報の構築
+        $result['deck_size'] = count($fcState->deck);
+        $result['active_player_index'] = $fcState->active;
+        // active_player_idはBGA側で持っているが、FC側と整合しているか確認用などに
 
         return $result;
     }
 
     /**
      * 新規ゲームのセットアップ
-     *
-     * ゲーム開始時に一度だけ呼び出される
-     *
-     * @param array $players プレイヤー情報
-     * @param array $options ゲームオプション
-     * @return string 初期状態のクラス名
      */
     protected function setupNewGame($players, $options = []): string
     {
-        // プレイヤーエネルギーを初期化
-        $this->playerEnergy->initDb(
-            array_keys($players),
-            initialValue: self::DEFAULT_PLAYER_ENERGY
-        );
-
-        // プレイヤーカラーを設定
         $gameinfos = $this->getGameinfos();
         $default_colors = $gameinfos['player_colors'];
 
@@ -155,57 +96,118 @@ class Game extends \Bga\GameFramework\Table
             ]);
         }
 
-        // プレイヤーをデータベースに登録
-        // dbmodel.sqlで追加フィールドがある場合はここで初期化
         static::DbQuery(sprintf(
             "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar) VALUES %s",
             implode(',', $query_values)
         ));
 
-        // お気に入りカラーで再割り当て
         $this->reattributeColorsBasedOnPreferences($players, $gameinfos['player_colors']);
         $this->reloadPlayersBasicInfos();
 
-        // 統計情報の初期化
-        // $this->tableStats->init('table_teststat1', 0);
-        // $this->playerStats->init('player_teststat1', 0);
-
-        // TODO: 初期ゲーム状況のセットアップ
-        // 例: カードデッキの作成、ボードの初期化など
+        // Functional Coreの初期化
+        $initialState = GameLogic::create_initial_state();
+        $this->saveState($initialState);
 
         // 最初のプレイヤーをアクティブ化
-        $this->activeNextPlayer();
+        // FCのactiveは0なので、BGA側も0番目のプレイヤーをアクティブにする
+        $sortedIds = $this->getSortedPlayerIds();
+        $this->gamestate->changeActivePlayer($sortedIds[0]);
 
         return PlayerTurn::class;
     }
 
     // ========================================
-    // デバッグ機能（Studioの「Debug」ボタンから実行可能）
+    // Functional Core Integration / Helpers
     // ========================================
 
+    public function loadState(): State
+    {
+        $json = $this->getUniqueValueFromDB("SELECT value FROM global_state WHERE `key` = 'main_state'");
+        if (!$json) {
+            // エラーハンドリングまたは初期状態（通常はsetupNewGameで作られるのでここは来ないはず）
+            return GameLogic::create_initial_state();
+        }
+
+        $data = json_decode($json, true);
+
+        // 配列からオブジェクトに復元（簡易実装）
+        // GameLogic.phpの定義に合わせて復元
+        return new State(
+            players: $data['players'],
+            active: $data['active'],
+            deck: $data['deck'],
+            msg: [] // msgは永続化する必要がない（ターン毎にクリアされる）
+        );
+    }
+
+    public function saveState(State $state): void
+    {
+        $json = json_encode([
+            'players' => $state->players,
+            'active' => $state->active,
+            'deck' => $state->deck,
+        ]);
+
+        // UPSERT
+        $this->DbQuery("INSERT INTO global_state (`key`, `value`) VALUES ('main_state', '$json') ON DUPLICATE KEY UPDATE `value` = '$json'");
+    }
+
     /**
-     * 指定した状態にジャンプ（デバッグ用）
-     *
-     * @param int $state 遷移先の状態ID
+     * player_id をソートしてインデックス（0, 1...）にマッピング
      */
+    public function getSortedPlayerIds(): array
+    {
+        $players = $this->getCollectionFromDb("SELECT player_id FROM player ORDER BY player_id ASC");
+        return array_keys($players);
+    }
+
+    public function mapPlayerIdToIndex(int $playerId): int
+    {
+        $ids = $this->getSortedPlayerIds();
+        $index = array_search($playerId, $ids);
+        if ($index === false) {
+            throw new \Bga\GameFramework\UserException("Player ID $playerId not found");
+        }
+        return (int) $index;
+    }
+
+    public function mapIndexToPlayerId(int $index): int
+    {
+        $ids = $this->getSortedPlayerIds();
+        if (!isset($ids[$index])) {
+            throw new \Bga\GameFramework\UserException("Player index $index out of bounds");
+        }
+        return (int) $ids[$index];
+    }
+
+    // ========================================
+    // Helper Methods
+    // ========================================
+
+    public function dbIncScore(int $playerId, int $amount): void
+    {
+        $this->DbQuery("UPDATE player SET player_score = player_score + $amount WHERE player_id = $playerId");
+    }
+
+    // ========================================
+    // デバッグ機能
+    // ========================================
+
     public function debug_goToState(int $state = self::DEFAULT_DEBUG_STATE): void
     {
         $this->gamestate->jumpToState($state);
     }
 
-    /**
-     * 自動プレイテスト（ゾンビモードテスト用）
-     *
-     * @param int $moves 実行する手数
-     */
     public function debug_playAutomatically(int $moves = self::DEFAULT_AUTO_PLAY_MOVES): void
     {
+        // 簡易実装: 現在のプレイヤーで actDraw を呼び続ける
         $count = 0;
         $current_state_id = (int) $this->gamestate->getCurrentMainStateId();
 
         while ($current_state_id < self::GAME_END_STATE && $count < $moves) {
             $count++;
 
+            // ゾンビモードのロジックを使って進める
             foreach ($this->gamestate->getActivePlayerList() as $playerId) {
                 $playerId = (int) $playerId;
                 $current_state = $this->gamestate->getCurrentState($playerId);
@@ -215,20 +217,4 @@ class Game extends \Bga\GameFramework\Table
             $current_state_id = (int) $this->gamestate->getCurrentMainStateId();
         }
     }
-
-    /**
-     * テスト用カード配置（デバッグ用）
-     *
-     * Deckコンポーネント使用時のテストに便利
-     *
-     * @param int $cardType カードタイプ
-     * @param int $playerId プレイヤーID
-     */
-    /*
-    public function debug_setCardInHand(int $cardType, int $playerId): void
-    {
-        $card = array_values($this->cards->getCardsOfType($cardType))[0];
-        $this->cards->moveCard($card['id'], 'hand', $playerId);
-    }
-    */
 }

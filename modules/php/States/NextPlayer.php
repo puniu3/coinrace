@@ -2,8 +2,6 @@
 
 /**
  * NextPlayer - 次プレイヤー移行状態
- *
- * プレイヤー間のターン遷移を管理する中間状態
  */
 
 declare(strict_types=1);
@@ -13,17 +11,12 @@ namespace Bga\Games\CoinRace\States;
 use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\GameState;
 use Bga\Games\CoinRace\Game;
+use Bga\Games\CoinRace\Core\GameLogic;
 
 class NextPlayer extends GameState
 {
-    // 定数定義
     private const STATE_ID = 90;
 
-    /**
-     * コンストラクタ
-     *
-     * @param Game $game ゲームインスタンス
-     */
     public function __construct(protected Game $game)
     {
         parent::__construct(
@@ -34,45 +27,27 @@ class NextPlayer extends GameState
         );
     }
 
-    /**
-     * 状態突入時の処理
-     *
-     * プレイヤーのターンが終了し、次のプレイヤーに移行する際に呼び出される
-     *
-     * @param int $activePlayerId アクション完了したプレイヤーのID
-     * @return string 次の状態クラス名
-     */
     public function onEnteringState(int $activePlayerId): string
     {
-        // アクション完了したプレイヤーに追加時間を付与
-        $this->game->giveExtraTime($activePlayerId);
+        // 直前のアクション完了プレイヤーに追加時間を付与（任意）
+        //$this->game->giveExtraTime($activePlayerId);
 
-        // 次のプレイヤーをアクティブ化
-        $this->game->activeNextPlayer();
+        // 1. Load State to check is_over
+        $state = $this->game->loadState();
 
-        // ゲーム終了判定
-        $gameEnd = $this->isGameEnd();
-
-        if ($gameEnd) {
+        if (GameLogic::is_over($state)) {
             return EndScore::class;
         }
 
+        // 2. Switch Active Player in BGA
+        // Functional CoreのStateは既に次のプレイヤーIndexになっている (advanceで更新済み)
+        // BGAのactive_playerもそれに合わせる
+
+        $nextActiveIndex = $state->active;
+        $nextActiveId = $this->game->mapIndexToPlayerId($nextActiveIndex);
+
+        $this->game->gamestate->changeActivePlayer($nextActiveId);
+
         return PlayerTurn::class;
-    }
-
-    /**
-     * ゲーム終了判定
-     *
-     * @return bool ゲームが終了している場合true
-     */
-    private function isGameEnd(): bool
-    {
-        // TODO: ゲーム終了条件を実装
-        // 例:
-        // - 全カードがプレイされた
-        // - 規定ラウンド数に達した
-        // - 勝利条件を満たしたプレイヤーがいる
-
-        return false;
     }
 }

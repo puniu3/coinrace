@@ -1,103 +1,25 @@
 /**
  * CoinRace - スタイルシート
- *
- * @author <Your name here> <Your email address here>
- * @copyright Board Game Arena
- * @see http://en.boardgamearena.com/#!doc/Studio
- *
- * このCSSファイルの用途:
- * 1. ゲーム全体のレイアウト定義（ボード、プレイヤーエリア、デッキ等の配置）
- * 2. CSSスプライトの作成（複数の画像を1つの画像ファイルにまとめて効率的に表示）
- * 3. JavaScriptから動的に追加/削除されるCSSクラスの定義
- *
- * 注意:
- * - @import ディレクティブは使用不可
- * - 本番環境ではコメントが削除され圧縮される
  */
 
-
-/* ========================================
-   レイアウト
-   ======================================== */
-
-/* TODO: ゲームのレイアウトをここに定義 */
-/* 例:
-#game-board {
-    float: left;
-    width: 600px;
-    height: 600px;
+.player-table {
+    display: inline-block;
+    width: 200px;
+    margin: 10px;
+    padding: 10px;
+    vertical-align: top;
+    text-align: center;
 }
 
-#player-hand {
-    margin-top: 20px;
-}
-*/
-
-
-/* ========================================
-   CSSスプライト
-   ======================================== */
-
-/* CSSスプライトの例:
- * tokens.png（40x20px）に白トークン（左）と黒トークン（右、各20x20px）が含まれる場合
- *
- * .token {
- *     width: 20px;
- *     height: 20px;
- *     background-image: url('img/tokens.png');
- *     background-repeat: no-repeat;
- * }
- *
- * .token-white {
- *     background-position: 0px 0px;
- * }
- *
- * .token-black {
- *     background-position: -20px 0px;
- * }
- */
-
-
-/* ========================================
-   ゲーム要素
-   ======================================== */
-
-/* TODO: カード、トークン、ボード等のスタイルをここに定義 */
-
-
-/* ========================================
-   アニメーション
-   ======================================== */
-
-/* TODO: トランジションやアニメーションをここに定義 */
-/* 例:
-@keyframes slide-in {
-    from {
-        transform: translateX(-100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
+#deck-container {
+    padding: 20px;
+    font-size: 1.2em;
+    text-align: center;
+    background-color: #f0f0f0;
+    margin-bottom: 20px;
+    border-radius: 8px;
 }
 
-.card-enter {
-    animation: slide-in 0.3s ease-out;
+#game-table {
+    text-align: center;
 }
-*/
-
-
-/* ========================================
-   レスポンシブ対応
-   ======================================== */
-
-/* TODO: モバイル対応のスタイルをここに定義 */
-/* 例:
-@media (max-width: 768px) {
-    #game-board {
-        width: 100%;
-        height: auto;
-    }
-}
-*/
