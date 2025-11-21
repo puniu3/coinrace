@@ -15,13 +15,13 @@ use Bga\GameFramework\States\GameState;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
 use Bga\Games\CoinRace\Game;
+use Bga\Games\CoinRace\Core\GameLogic;
+use Bga\Games\CoinRace\Core\DrawAction;
 
 class PlayerTurn extends GameState
 {
     // 定数定義
     private const STATE_ID = 10;
-    private const SCORE_PER_CARD = 1;
-    private const ENERGY_PER_PASS = 1;
 
     /**
      * コンストラクタ
@@ -34,8 +34,8 @@ class PlayerTurn extends GameState
             $game,
             id: self::STATE_ID,
             type: StateType::ACTIVE_PLAYER,
-            description: clienttranslate('${actplayer} must play a card or pass'),
-            descriptionMyTurn: clienttranslate('${you} must play a card or pass'),
+            description: clienttranslate('${actplayer} must draw a coin'),
+            descriptionMyTurn: clienttranslate('${you} must draw a coin'),
         );
     }
 
@@ -48,77 +48,60 @@ class PlayerTurn extends GameState
      */
     public function getArgs(): array
     {
-        // TODO: データベースから現在のゲーム状況を取得
-        // 例: プレイヤーの手札、プレイ可能なカードなど
-
-        return [
-            'playableCardsIds' => [1, 2],
-        ];
+        // For DrawAction, there are no arguments needed
+        // The player just draws the top card
+        return [];
     }
 
     /**
-     * カードをプレイするアクション
+     * Draw a coin action
      *
-     * フロントエンドの bgaPerformAction("actPlayCard") から呼び出される
+     * Called from frontend: bgaPerformAction("actDrawCoin")
      *
-     * @param int $card_id プレイするカードID
-     * @param int $activePlayerId アクティブプレイヤーID
-     * @param array $args 状態引数（getArgs()の戻り値）
-     * @return string 次の状態クラス名
-     * @throws UserException 無効なカード選択時
+     * @param int $activePlayerId Active player ID
+     * @param array $args State arguments (getArgs() return value)
+     * @return string Next state class name
      */
     #[PossibleAction]
-    public function actPlayCard(int $card_id, int $activePlayerId, array $args): string
+    public function actDrawCoin(int $activePlayerId, array $args): string
     {
-        // 入力値の検証
-        $playableCardsIds = $args['playableCardsIds'];
-        if (!in_array($card_id, $playableCardsIds, strict: true)) {
-            throw new UserException('Invalid card choice');
+        // ========================================
+        // Imperative Shell: Load state from DB
+        // ========================================
+        $state = $this->game->loadState();
+
+        // ========================================
+        // Functional Core: Advance state
+        // ========================================
+        $action = new DrawAction();
+        $newState = GameLogic::advance($state, $action);
+
+        // ========================================
+        // Imperative Shell: Extract messages and apply side effects
+        // ========================================
+
+        // Process messages from functional core
+        foreach ($newState->msg as $msg) {
+            if ($msg instanceof \Bga\Games\CoinRace\Core\CoinAcquired) {
+                // Notify all players
+                $this->notify->all('coinAcquired', clienttranslate('${player_name} draws a coin and gains ${amount} point(s)'), [
+                    'player_id' => $activePlayerId,
+                    'player_name' => $this->game->getPlayerNameById($activePlayerId),
+                    'amount' => $msg->amount,
+                    'score' => $newState->players[$msg->player_id],
+                ]);
+            }
         }
 
-        // カード名を取得
-        $card_name = Game::$CARD_TYPES[$card_id]['card_name'];
+        // ========================================
+        // Imperative Shell: Save state to DB
+        // ========================================
+        $this->game->saveState($newState);
 
-        // TODO: カードをプレイするゲームロジックを実装
-        // 例: カードを手札から場に移動、効果を適用など
+        // Note: Active player will be changed by NextPlayer state
+        // We save the next active player index in the state, and NextPlayer will use it
 
-        // 全プレイヤーに通知
-        $this->notify->all('cardPlayed', clienttranslate('${player_name} plays ${card_name}'), [
-            'player_id' => $activePlayerId,
-            'player_name' => $this->game->getPlayerNameById($activePlayerId),
-            'card_name' => $card_name,
-            'card_id' => $card_id,
-            'i18n' => ['card_name'],
-        ]);
-
-        // スコア加算（この例ではカード1枚につき1点）
-        $this->playerScore->inc($activePlayerId, self::SCORE_PER_CARD);
-
-        // 次の状態へ遷移
-        return NextPlayer::class;
-    }
-
-    /**
-     * パスアクション
-     *
-     * フロントエンドの bgaPerformAction("actPass") から呼び出される
-     *
-     * @param int $activePlayerId アクティブプレイヤーID
-     * @return string 次の状態クラス名
-     */
-    #[PossibleAction]
-    public function actPass(int $activePlayerId): string
-    {
-        // 全プレイヤーに通知
-        $this->notify->all('pass', clienttranslate('${player_name} passes'), [
-            'player_id' => $activePlayerId,
-            'player_name' => $this->game->getPlayerNameById($activePlayerId),
-        ]);
-
-        // エネルギー加算（この例ではパス1回につき1エネルギー）
-        $this->game->playerEnergy->inc($activePlayerId, self::ENERGY_PER_PASS);
-
-        // 次の状態へ遷移
+        // Transition to next state
         return NextPlayer::class;
     }
 
@@ -136,12 +119,8 @@ class PlayerTurn extends GameState
      */
     public function zombie(int $playerId): string
     {
-        // ゾンビレベル0: 単純にパスする
-        // return $this->actPass($playerId);
-
-        // ゾンビレベル1: ランダムにカードを選択してプレイ
+        // Simply draw a coin automatically
         $args = $this->getArgs();
-        $zombieChoice = $this->getRandomZombieChoice($args['playableCardsIds']);
-        return $this->actPlayCard($zombieChoice, $playerId, $args);
+        return $this->actDrawCoin($playerId, $args);
     }
 }

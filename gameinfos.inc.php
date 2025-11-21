@@ -10,19 +10,19 @@
 
 $gameinfos = [
     // ゲーム基本情報
-    'game_name' => "My Great Game",
-    'publisher' => 'My Publishing Company',
-    'publisher_website' => 'http://www.mypublishingcompany.com/',
-    'publisher_bgg_id' => 1234,
+    'game_name' => "Coin Race",
+    'publisher' => '',
+    'publisher_website' => '',
+    'publisher_bgg_id' => 0,
     'bgg_id' => 0,
 
-    // プレイ人数設定（例: 2～4人プレイ）
-    'players' => [2, 3, 4],
+    // プレイ人数設定（2人専用）
+    'players' => [2],
     'suggest_player_number' => null,
     'not_recommend_player_number' => null,
 
     // ゲーム時間設定（分）
-    'estimated_duration' => 30,
+    'estimated_duration' => 5,
 
     // 追加時間設定（秒）- giveExtraTime() 呼び出し時に追加される時間
     'fast_additional_time' => 30,

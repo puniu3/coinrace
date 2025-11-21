@@ -13,6 +13,7 @@ namespace Bga\Games\CoinRace\States;
 use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\GameState;
 use Bga\Games\CoinRace\Game;
+use Bga\Games\CoinRace\Core\GameLogic;
 
 class NextPlayer extends GameState
 {
@@ -47,15 +48,21 @@ class NextPlayer extends GameState
         // アクション完了したプレイヤーに追加時間を付与
         $this->game->giveExtraTime($activePlayerId);
 
-        // 次のプレイヤーをアクティブ化
-        $this->game->activeNextPlayer();
-
         // ゲーム終了判定
         $gameEnd = $this->isGameEnd();
 
         if ($gameEnd) {
             return EndScore::class;
         }
+
+        // ========================================
+        // Functional Core: Get next active player
+        // ========================================
+        // The functional core has already determined the next active player
+        // We load the state and activate the player corresponding to state->active
+        $state = $this->game->loadState();
+        $nextPlayerId = $this->game->getPlayerIdByIndex($state->active);
+        $this->game->gamestate->changeActivePlayer($nextPlayerId);
 
         return PlayerTurn::class;
     }
@@ -67,12 +74,10 @@ class NextPlayer extends GameState
      */
     private function isGameEnd(): bool
     {
-        // TODO: ゲーム終了条件を実装
-        // 例:
-        // - 全カードがプレイされた
-        // - 規定ラウンド数に達した
-        // - 勝利条件を満たしたプレイヤーがいる
-
-        return false;
+        // ========================================
+        // Functional Core: Check if game is over
+        // ========================================
+        $state = $this->game->loadState();
+        return GameLogic::is_over($state);
     }
 }
