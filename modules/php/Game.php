@@ -53,11 +53,12 @@ class Game extends \Bga\GameFramework\Table
             "SELECT `player_id`, `player_score`, `player_no` FROM `player` ORDER BY `player_no`"
         );
 
-        // Convert to array indexed by player_no (0, 1)
+        // Convert to array indexed by 0-based index
+        // BGA's player_no is 1-based (1, 2, ...), we convert to 0-based (0, 1, ...)
         $players = [0, 0];
         $playerIdToIndex = [];
         foreach ($playersData as $player_id => $player) {
-            $index = (int)$player['player_no'];
+            $index = (int)$player['player_no'] - 1;  // Convert 1-based to 0-based
             $players[$index] = (int)$player['player_score'];
             $playerIdToIndex[$player_id] = $index;
         }
@@ -88,7 +89,8 @@ class Game extends \Bga\GameFramework\Table
         );
 
         foreach ($playersData as $player_id => $player) {
-            $index = (int)$player['player_no'];
+            // Convert BGA's 1-based player_no to 0-based index
+            $index = (int)$player['player_no'] - 1;
             $score = $state->players[$index];
             $this->DbQuery("UPDATE `player` SET `player_score` = $score WHERE `player_id` = $player_id");
         }
@@ -102,11 +104,16 @@ class Game extends \Bga\GameFramework\Table
 
     /**
      * Get player_id from player index (0 or 1)
+     *
+     * @param int $index 0-based player index
+     * @return int player_id
      */
     public function getPlayerIdByIndex(int $index): int
     {
+        // Convert 0-based index to 1-based player_no
+        $player_no = $index + 1;
         $playersData = $this->getCollectionFromDb(
-            "SELECT `player_id`, `player_no` FROM `player` WHERE `player_no` = $index"
+            "SELECT `player_id`, `player_no` FROM `player` WHERE `player_no` = $player_no"
         );
         return (int)array_key_first($playersData);
     }
@@ -190,21 +197,20 @@ class Game extends \Bga\GameFramework\Table
         $default_colors = $gameinfos['player_colors'];
 
         $query_values = [];
-        $player_no = 0;
         foreach ($players as $player_id => $player) {
-            $query_values[] = vsprintf("('%s', '%s', '%s', '%s', '%s', '%s')", [
+            $query_values[] = vsprintf("('%s', '%s', '%s', '%s', '%s')", [
                 $player_id,
                 array_shift($default_colors),
                 $player['player_canal'],
                 addslashes($player['player_name']),
                 addslashes($player['player_avatar']),
-                $player_no++,  // Assign player_no sequentially (0, 1, ...)
             ]);
         }
 
         // プレイヤーをデータベースに登録
+        // player_no は AUTO_INCREMENT で自動的に 1, 2, ... と割り当てられる
         static::DbQuery(sprintf(
-            "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar, player_no) VALUES %s",
+            "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar) VALUES %s",
             implode(',', $query_values)
         ));
 
@@ -234,7 +240,8 @@ class Game extends \Bga\GameFramework\Table
         // Player scores in $initialState->players are [0, 0]
 
         // Active player: Set first player as active
-        // The initial state has active=0, so we need to activate player_no=0
+        // The initial state has active=0 (0-based index)
+        // We use getPlayerIdByIndex which converts to 1-based player_no
         $firstPlayerId = $this->getPlayerIdByIndex(0);
         $this->gamestate->changeActivePlayer($firstPlayerId);
 
