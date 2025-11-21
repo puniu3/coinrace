@@ -1,19 +1,13 @@
 <?php
+
 /**
- *------
- * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
- * CoinRace implementation : © <Your name here> <Your email address here>
+ * CoinRace - メインゲームロジック
  *
- * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
- * See http://en.boardgamearena.com/#!doc/Studio for more information.
- * -----
- *
- * Game.php
- *
- * This is the main file for your game logic.
- *
- * In this PHP file, you are going to defines the rules of the game.
+ * @author <Your name here> <Your email address here>
+ * @copyright Board Game Arena
+ * @see http://en.boardgamearena.com/#!doc/Studio
  */
+
 declare(strict_types=1);
 
 namespace Bga\Games\CoinRace;
@@ -23,210 +17,216 @@ use Bga\GameFramework\Components\Counters\PlayerCounter;
 
 class Game extends \Bga\GameFramework\Table
 {
+    // 定数定義
+    private const DEFAULT_PLAYER_ENERGY = 2;
+    private const GAME_END_STATE = 99;
+    private const DEFAULT_DEBUG_STATE = 3;
+    private const DEFAULT_AUTO_PLAY_MOVES = 50;
+
+    // カードタイプ定義
     public static array $CARD_TYPES;
 
+    // プレイヤーエネルギーカウンター
     public PlayerCounter $playerEnergy;
 
     /**
-     * Your global variables labels:
-     *
-     * Here, you can assign labels to global variables you are using for this game. You can use any number of global
-     * variables with IDs between 10 and 99. If you want to store any type instead of int, use $this->globals instead.
-     *
-     * NOTE: afterward, you can get/set the global variables with `getGameStateValue`, `setGameStateInitialValue` or
-     * `setGameStateValue` functions.
+     * コンストラクタ
+     * ゲーム状態ラベル、カウンター、カードタイプを初期化
      */
     public function __construct()
     {
         parent::__construct();
-        $this->initGameStateLabels([]); // mandatory, even if the array is empty
 
+        // ゲーム状態ラベルの初期化（空でも必須）
+        $this->initGameStateLabels([]);
+
+        // プレイヤーエネルギーカウンターの作成
         $this->playerEnergy = $this->counterFactory->createPlayerCounter('energy');
 
+        // カードタイプの定義
         self::$CARD_TYPES = [
-            1 => [
-                "card_name" => clienttranslate('Troll'), // ...
-            ],
-            2 => [
-                "card_name" => clienttranslate('Goblin'), // ...
-            ],
-            // ...
+            1 => ['card_name' => clienttranslate('Troll')],
+            2 => ['card_name' => clienttranslate('Goblin')],
         ];
 
-        /* example of notification decorator.
-        // automatically complete notification args when needed
+        // 通知デコレーター（任意）
+        // プレイヤー名やカード名を自動補完する場合に有効化
+        /*
         $this->notify->addDecorator(function(string $message, array $args) {
             if (isset($args['player_id']) && !isset($args['player_name']) && str_contains($message, '${player_name}')) {
                 $args['player_name'] = $this->getPlayerNameById($args['player_id']);
             }
-        
+
             if (isset($args['card_id']) && !isset($args['card_name']) && str_contains($message, '${card_name}')) {
                 $args['card_name'] = self::$CARD_TYPES[$args['card_id']]['card_name'];
-                $args['i18n'][] = ['card_name'];
+                $args['i18n'][] = 'card_name';
             }
-            
+
             return $args;
-        });*/
+        });
+        */
     }
 
     /**
-     * Compute and return the current game progression.
+     * ゲーム進行度を計算（0～100%）
      *
-     * The number returned must be an integer between 0 and 100.
+     * updateGameProgression = true の状態で自動的に呼び出される
      *
-     * This method is called each time we are in a game state with the "updateGameProgression" property set to true.
-     *
-     * @return int
-     * @see ./states.inc.php
+     * @return int 進行度（0～100）
      */
-    public function getGameProgression()
+    public function getGameProgression(): int
     {
-        // TODO: compute and return the game progression
-
+        // TODO: ゲーム進行度の計算ロジックを実装
         return 0;
     }
 
     /**
-     * Migrate database.
+     * データベーススキーマのマイグレーション
      *
-     * You don't have to care about this until your game has been published on BGA. Once your game is on BGA, this
-     * method is called everytime the system detects a game running with your old database scheme. In this case, if you
-     * change your database scheme, you just have to apply the needed changes in order to update the game database and
-     * allow the game to continue to run with your new version.
+     * ゲームが公開された後、スキーマ変更時に使用
      *
-     * @param int $from_version
-     * @return void
+     * @param int $from_version 移行元のバージョン番号
      */
-    public function upgradeTableDb($from_version)
+    public function upgradeTableDb($from_version): void
     {
-//       if ($from_version <= 1404301345)
-//       {
-//            // ! important ! Use `DBPREFIX_<table_name>` for all tables
-//
-//            $sql = "ALTER TABLE `DBPREFIX_xxxxxxx` ....";
-//            $this->applyDbUpgradeToAllDB( $sql );
-//       }
-//
-//       if ($from_version <= 1405061421)
-//       {
-//            // ! important ! Use `DBPREFIX_<table_name>` for all tables
-//
-//            $sql = "CREATE TABLE `DBPREFIX_xxxxxxx` ....";
-//            $this->applyDbUpgradeToAllDB( $sql );
-//       }
+        // 例: バージョン1404301345以前からのマイグレーション
+        // if ($from_version <= 1404301345) {
+        //     $sql = "ALTER TABLE `DBPREFIX_xxxxxxx` ADD COLUMN ...";
+        //     $this->applyDbUpgradeToAllDB($sql);
+        // }
     }
 
-    /*
-     * Gather all information about current game situation (visible by the current player).
+    /**
+     * 現在のゲーム状況を取得
      *
-     * The method is called each time the game interface is displayed to a player, i.e.:
+     * ゲーム画面表示時（開始時、リフレッシュ時）に呼び出される
+     * 現在のプレイヤーから見える情報のみを返す
      *
-     * - when the game starts
-     * - when a player refreshes the game page (F5)
+     * @return array ゲームデータ
      */
     protected function getAllDatas(): array
     {
         $result = [];
-
-        // WARNING: We must only return information visible by the current player.
         $current_player_id = (int) $this->getCurrentPlayerId();
 
-        // Get information about players.
-        // NOTE: you can retrieve some extra field you added for "player" table in `dbmodel.sql` if you need it.
-        $result["players"] = $this->getCollectionFromDb(
+        // プレイヤー情報を取得（dbmodel.sqlで追加したフィールドも取得可能）
+        $result['players'] = $this->getCollectionFromDb(
             "SELECT `player_id` `id`, `player_score` `score` FROM `player`"
         );
+
+        // プレイヤーエネルギーを結果に追加
         $this->playerEnergy->fillResult($result);
 
-        // TODO: Gather all information about current game situation (visible by player $current_player_id).
+        // TODO: その他のゲーム状況データを追加
+        // 例: カード、ボード状態など（$current_player_idから見える情報のみ）
 
         return $result;
     }
 
     /**
-     * This method is called only once, when a new game is launched. In this method, you must setup the game
-     *  according to the game rules, so that the game is ready to be played.
+     * 新規ゲームのセットアップ
+     *
+     * ゲーム開始時に一度だけ呼び出される
+     *
+     * @param array $players プレイヤー情報
+     * @param array $options ゲームオプション
+     * @return string 初期状態のクラス名
      */
-    protected function setupNewGame($players, $options = [])
+    protected function setupNewGame($players, $options = []): string
     {
-        $this->playerEnergy->initDb(array_keys($players), initialValue: 2);
+        // プレイヤーエネルギーを初期化
+        $this->playerEnergy->initDb(
+            array_keys($players),
+            initialValue: self::DEFAULT_PLAYER_ENERGY
+        );
 
-        // Set the colors of the players with HTML color code. The default below is red/green/blue/orange/brown. The
-        // number of colors defined here must correspond to the maximum number of players allowed for the gams.
+        // プレイヤーカラーを設定
         $gameinfos = $this->getGameinfos();
         $default_colors = $gameinfos['player_colors'];
 
+        $query_values = [];
         foreach ($players as $player_id => $player) {
-            // Now you can access both $player_id and $player array
             $query_values[] = vsprintf("('%s', '%s', '%s', '%s', '%s')", [
                 $player_id,
                 array_shift($default_colors),
-                $player["player_canal"],
-                addslashes($player["player_name"]),
-                addslashes($player["player_avatar"]),
+                $player['player_canal'],
+                addslashes($player['player_name']),
+                addslashes($player['player_avatar']),
             ]);
         }
 
-        // Create players based on generic information.
-        //
-        // NOTE: You can add extra field on player table in the database (see dbmodel.sql) and initialize
-        // additional fields directly here.
-        static::DbQuery(
-            sprintf(
-                "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar) VALUES %s",
-                implode(",", $query_values)
-            )
-        );
+        // プレイヤーをデータベースに登録
+        // dbmodel.sqlで追加フィールドがある場合はここで初期化
+        static::DbQuery(sprintf(
+            "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar) VALUES %s",
+            implode(',', $query_values)
+        ));
 
-        $this->reattributeColorsBasedOnPreferences($players, $gameinfos["player_colors"]);
+        // お気に入りカラーで再割り当て
+        $this->reattributeColorsBasedOnPreferences($players, $gameinfos['player_colors']);
         $this->reloadPlayersBasicInfos();
 
-        // Init global values with their initial values.
-
-        // Init game statistics.
-        //
-        // NOTE: statistics used in this file must be defined in your `stats.inc.php` file.
-
-        // Dummy content.
+        // 統計情報の初期化
         // $this->tableStats->init('table_teststat1', 0);
         // $this->playerStats->init('player_teststat1', 0);
 
-        // TODO: Setup the initial game situation here.
+        // TODO: 初期ゲーム状況のセットアップ
+        // 例: カードデッキの作成、ボードの初期化など
 
-        // Activate first player once everything has been initialized and ready.
+        // 最初のプレイヤーをアクティブ化
         $this->activeNextPlayer();
 
         return PlayerTurn::class;
     }
 
+    // ========================================
+    // デバッグ機能（Studioの「Debug」ボタンから実行可能）
+    // ========================================
+
     /**
-     * Example of debug function.
-     * Here, jump to a state you want to test (by default, jump to next player state)
-     * You can trigger it on Studio using the Debug button on the right of the top bar.
+     * 指定した状態にジャンプ（デバッグ用）
+     *
+     * @param int $state 遷移先の状態ID
      */
-    public function debug_goToState(int $state = 3) {
+    public function debug_goToState(int $state = self::DEFAULT_DEBUG_STATE): void
+    {
         $this->gamestate->jumpToState($state);
     }
 
     /**
-     * Another example of debug function, to easily test the zombie code.
+     * 自動プレイテスト（ゾンビモードテスト用）
+     *
+     * @param int $moves 実行する手数
      */
-    public function debug_playAutomatically(int $moves = 50) {
+    public function debug_playAutomatically(int $moves = self::DEFAULT_AUTO_PLAY_MOVES): void
+    {
         $count = 0;
-        while (intval($this->gamestate->getCurrentMainStateId()) < 99 && $count < $moves) {
+        $current_state_id = (int) $this->gamestate->getCurrentMainStateId();
+
+        while ($current_state_id < self::GAME_END_STATE && $count < $moves) {
             $count++;
-            foreach($this->gamestate->getActivePlayerList() as $playerId) {
-                $playerId = (int)$playerId;
-                $this->gamestate->runStateClassZombie($this->gamestate->getCurrentState($playerId), $playerId);
+
+            foreach ($this->gamestate->getActivePlayerList() as $playerId) {
+                $playerId = (int) $playerId;
+                $current_state = $this->gamestate->getCurrentState($playerId);
+                $this->gamestate->runStateClassZombie($current_state, $playerId);
             }
+
+            $current_state_id = (int) $this->gamestate->getCurrentMainStateId();
         }
     }
 
+    /**
+     * テスト用カード配置（デバッグ用）
+     *
+     * Deckコンポーネント使用時のテストに便利
+     *
+     * @param int $cardType カードタイプ
+     * @param int $playerId プレイヤーID
+     */
     /*
-    Another example of debug function, to easily create situations you want to test.
-    Here, put a card you want to test in your hand (assuming you use the Deck component).
-
-    public function debug_setCardInHand(int $cardType, int $playerId) {
+    public function debug_setCardInHand(int $cardType, int $playerId): void
+    {
         $card = array_values($this->cards->getCardsOfType($cardType))[0];
         $this->cards->moveCard($card['id'], 'hand', $playerId);
     }

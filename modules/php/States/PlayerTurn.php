@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * PlayerTurn - プレイヤーターン状態
+ *
+ * プレイヤーがカードをプレイするか、パスする状態
+ */
+
 declare(strict_types=1);
 
 namespace Bga\Games\CoinRace\States;
@@ -12,11 +18,21 @@ use Bga\Games\CoinRace\Game;
 
 class PlayerTurn extends GameState
 {
-    function __construct(
-        protected Game $game,
-    ) {
-        parent::__construct($game,
-            id: 10,
+    // 定数定義
+    private const STATE_ID = 10;
+    private const SCORE_PER_CARD = 1;
+    private const ENERGY_PER_PASS = 1;
+
+    /**
+     * コンストラクタ
+     *
+     * @param Game $game ゲームインスタンス
+     */
+    public function __construct(protected Game $game)
+    {
+        parent::__construct(
+            $game,
+            id: self::STATE_ID,
             type: StateType::ACTIVE_PLAYER,
             description: clienttranslate('${actplayer} must play a card or pass'),
             descriptionMyTurn: clienttranslate('${you} must play a card or pass'),
@@ -24,96 +40,108 @@ class PlayerTurn extends GameState
     }
 
     /**
-     * Game state arguments, example content.
+     * ゲーム状態の引数を取得
      *
-     * This method returns some additional information that is very specific to the `PlayerTurn` game state.
+     * この状態で必要な情報を返す（プレイ可能なカードIDなど）
+     *
+     * @return array 状態引数
      */
     public function getArgs(): array
     {
-        // Get some values from the current game situation from the database.
+        // TODO: データベースから現在のゲーム状況を取得
+        // 例: プレイヤーの手札、プレイ可能なカードなど
 
         return [
-            "playableCardsIds" => [1, 2],
+            'playableCardsIds' => [1, 2],
         ];
-    }    
+    }
 
     /**
-     * Player action, example content.
+     * カードをプレイするアクション
      *
-     * In this scenario, each time a player plays a card, this method will be called. This method is called directly
-     * by the action trigger on the front side with `bgaPerformAction`.
+     * フロントエンドの bgaPerformAction("actPlayCard") から呼び出される
      *
-     * @throws UserException
+     * @param int $card_id プレイするカードID
+     * @param int $activePlayerId アクティブプレイヤーID
+     * @param array $args 状態引数（getArgs()の戻り値）
+     * @return string 次の状態クラス名
+     * @throws UserException 無効なカード選択時
      */
     #[PossibleAction]
-    public function actPlayCard(int $card_id, int $activePlayerId, array $args)
+    public function actPlayCard(int $card_id, int $activePlayerId, array $args): string
     {
-        // check input values
+        // 入力値の検証
         $playableCardsIds = $args['playableCardsIds'];
-        if (!in_array($card_id, $playableCardsIds)) {
+        if (!in_array($card_id, $playableCardsIds, strict: true)) {
             throw new UserException('Invalid card choice');
         }
 
-        // Add your game logic to play a card here.
+        // カード名を取得
         $card_name = Game::$CARD_TYPES[$card_id]['card_name'];
 
-        // Notify all players about the card played.
-        $this->notify->all("cardPlayed", clienttranslate('${player_name} plays ${card_name}'), [
-            "player_id" => $activePlayerId,
-            "player_name" => $this->game->getPlayerNameById($activePlayerId), // remove this line if you uncomment notification decorator
-            "card_name" => $card_name, // remove this line if you uncomment notification decorator
-            "card_id" => $card_id,
-            "i18n" => ['card_name'], // remove this line if you uncomment notification decorator
+        // TODO: カードをプレイするゲームロジックを実装
+        // 例: カードを手札から場に移動、効果を適用など
+
+        // 全プレイヤーに通知
+        $this->notify->all('cardPlayed', clienttranslate('${player_name} plays ${card_name}'), [
+            'player_id' => $activePlayerId,
+            'player_name' => $this->game->getPlayerNameById($activePlayerId),
+            'card_name' => $card_name,
+            'card_id' => $card_id,
+            'i18n' => ['card_name'],
         ]);
 
-        // in this example, the player gains 1 points each time he plays a card
-        $this->playerScore->inc($activePlayerId, 1);
+        // スコア加算（この例ではカード1枚につき1点）
+        $this->playerScore->inc($activePlayerId, self::SCORE_PER_CARD);
 
-        // at the end of the action, move to the next state
+        // 次の状態へ遷移
         return NextPlayer::class;
     }
 
     /**
-     * Player action, example content.
+     * パスアクション
      *
-     * In this scenario, each time a player pass, this method will be called. This method is called directly
-     * by the action trigger on the front side with `bgaPerformAction`.
+     * フロントエンドの bgaPerformAction("actPass") から呼び出される
+     *
+     * @param int $activePlayerId アクティブプレイヤーID
+     * @return string 次の状態クラス名
      */
     #[PossibleAction]
-    public function actPass(int $activePlayerId)
+    public function actPass(int $activePlayerId): string
     {
-        // Notify all players about the choice to pass.
-        $this->notify->all("pass", clienttranslate('${player_name} passes'), [
-            "player_id" => $activePlayerId,
-            "player_name" => $this->game->getPlayerNameById($activePlayerId), // remove this line if you uncomment notification decorator
+        // 全プレイヤーに通知
+        $this->notify->all('pass', clienttranslate('${player_name} passes'), [
+            'player_id' => $activePlayerId,
+            'player_name' => $this->game->getPlayerNameById($activePlayerId),
         ]);
 
-        // in this example, the player gains 1 energy each time he passes
-        $this->game->playerEnergy->inc($activePlayerId, 1);
+        // エネルギー加算（この例ではパス1回につき1エネルギー）
+        $this->game->playerEnergy->inc($activePlayerId, self::ENERGY_PER_PASS);
 
-        // at the end of the action, move to the next state
+        // 次の状態へ遷移
         return NextPlayer::class;
     }
 
     /**
-     * This method is called each time it is the turn of a player who has quit the game (= "zombie" player).
-     * You can do whatever you want in order to make sure the turn of this player ends appropriately
-     * (ex: play a random card).
-     * 
-     * See more about Zombie Mode: https://en.doc.boardgamearena.com/Zombie_Mode
+     * ゾンビモード処理
      *
-     * Important: your zombie code will be called when the player leaves the game. This action is triggered
-     * from the main site and propagated to the gameserver from a server, not from a browser.
-     * As a consequence, there is no current player associated to this action. In your zombieTurn function,
-     * you must _never_ use `getCurrentPlayerId()` or `getCurrentPlayerName()`, 
-     * but use the $playerId passed in parameter and $this->game->getPlayerNameById($playerId) instead.
+     * プレイヤーが切断した場合の自動処理
+     *
+     * 重要: getCurrentPlayerId() は使用しない
+     * 　　　引数の $playerId を使用すること
+     *
+     * @param int $playerId ゾンビプレイヤーのID
+     * @return string 次の状態クラス名
+     * @see https://en.doc.boardgamearena.com/Zombie_Mode
      */
-    function zombie(int $playerId) {
-        // Example of zombie level 0: return NextPlayer::class; or $this->actPass($playerId);
+    public function zombie(int $playerId): string
+    {
+        // ゾンビレベル0: 単純にパスする
+        // return $this->actPass($playerId);
 
-        // Example of zombie level 1:
+        // ゾンビレベル1: ランダムにカードを選択してプレイ
         $args = $this->getArgs();
-        $zombieChoice = $this->getRandomZombieChoice($args['playableCardsIds']); // random choice over possible moves
-        return $this->actPlayCard($zombieChoice, $playerId, $args); // this function will return the transition to the next state
+        $zombieChoice = $this->getRandomZombieChoice($args['playableCardsIds']);
+        return $this->actPlayCard($zombieChoice, $playerId, $args);
     }
 }
