@@ -13,9 +13,7 @@ CREATE TABLE IF NOT EXISTS `deck` (
   PRIMARY KEY (`card_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
 
--- Extend player table with player_no column
--- player_no: 0-based player index used by functional core (0 or 1)
-ALTER TABLE `player` ADD `player_no` int(10) unsigned NOT NULL DEFAULT 0;
-
 -- Note: Player scores are stored in the default 'player' table's 'player_score' column
+-- Note: BGA's default 'player_no' (1-based, AUTO_INCREMENT) is used for player ordering
+--       We convert to 0-based index in the code by subtracting 1
 -- Note: Active player is managed by BGA's built-in game state mechanism
