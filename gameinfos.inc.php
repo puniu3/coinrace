@@ -1,98 +1,74 @@
 <?php
 
-/*
- * From this file, you can edit the various meta-information of your game.
+/**
+ * ゲームのメタ情報設定ファイル
  *
- * Once you modified the file, don't forget to click on "Reload game informations" from the Control Panel in order in can be taken into account.
+ * このファイルを変更した後は、コントロールパネルから「ゲーム情報をリロード」をクリックしてください。
  *
- * See documentation about this file here:
- * http://en.doc.boardgamearena.com/Game_meta-information:_gameinfos.inc.php
-*/
+ * @see http://en.doc.boardgamearena.com/Game_meta-information:_gameinfos.inc.php
+ */
 
 $gameinfos = [
-    // Name of the game in English (will serve as the basis for translation)
+    // ゲーム基本情報
     'game_name' => "My Great Game",
-
-    // Game publisher (use empty string if there is no publisher)
     'publisher' => 'My Publishing Company',
-
-    // Url of game publisher website
     'publisher_website' => 'http://www.mypublishingcompany.com/',
-
-    // Board Game Geek ID of the publisher
     'publisher_bgg_id' => 1234,
-
-    // Board game geek ID of the game
     'bgg_id' => 0,
 
-    // Players configuration that can be played (ex: 2 to 4 players)
+    // プレイ人数設定（例: 2～4人プレイ）
     'players' => [2, 3, 4],
-
-    // Suggest players to play with this number of players. Must be null if there is no such advice, or if there is only one possible player configuration.
-    // NB: the automatic lobby will try first the lowest number of players if this is not specified. So you _have to_ specify this parameter if the lowest player number is not compatible with the default options.
     'suggest_player_number' => null,
-
-    // Discourage players to play with these numbers of players. Must be null if there is no such advice.
     'not_recommend_player_number' => null,
-    // 'not_recommend_player_number' => array( 2, 3 ),      // <= example: this is not recommended to play this game with 2 or 3 players
 
-    // Estimated game duration, in minutes (used only for the launch, afterward the real duration is computed)
+    // ゲーム時間設定（分）
     'estimated_duration' => 30,
 
-    // Time in second add to a player when "giveExtraTime" is called (speed profile = fast)
+    // 追加時間設定（秒）- giveExtraTime() 呼び出し時に追加される時間
     'fast_additional_time' => 30,
-
-    // Time in second add to a player when "giveExtraTime" is called (speed profile = medium)
     'medium_additional_time' => 40,
-
-    // Time in second add to a player when "giveExtraTime" is called (speed profile = slow)
     'slow_additional_time' => 50,
 
-    // If you are using a tie breaker in your game (using "player_score_aux"), you must describe here
-    // the formula used to compute "player_score_aux". This description will be used as a tooltip to explain
-    // the tie breaker to the players.
-    // Note: if you are NOT using any tie breaker, leave the empty string.
-    //
-    // Example: 'tie_breaker_description' => totranslate( "Number of remaining cards in hand" ),
+    // タイブレーカーの説明（使用しない場合は空文字列）
+    // 例: 'tie_breaker_description' => totranslate("手札の残り枚数")
     'tie_breaker_description' => "",
 
-    // If in the game, all losers are equal (no score to rank them or explicit in the rules that losers are not ranked between them), set this to true
-    // The game end result will display "Winner" for the 1st player and "Loser" for all other players
-    'losers_not_ranked' => false,
+    // ゲームモード設定
+    'losers_not_ranked' => false,       // 敗者を同順位にするか
+    'solo_mode_ranked' => false,        // ソロモードをランキング対象にするか
+    'is_coop' => 0,                     // 協力ゲームか（0=非協力, 1=協力）
 
-    // Allow to rank solo games for games where it's the only available mode (ex: Orchard). Should be left to false for games where solo mode exists in addition to multiple players mode.
-    'solo_mode_ranked' => false,
-
-    // Is this game cooperative (all players wins together or loose together)
-    'is_coop' => 0,
-
-    // Language dependency. If false or not set, there is no language dependency. If true, all players at the table must speak the same language.
-    // If an array of shortcode languages such as array( 1 => 'en', 2 => 'fr', 3 => 'it' ) then all players at the table must speak the same language, and this language must be one of the listed languages.
-    // NB: the default will be the first language in this list spoken by the player, so you should list them by popularity/preference.
+    // 言語依存性（false=依存なし, true=全員同言語必須）
     'language_dependency' => false,
 
-    // Colors attributed to players
-    'player_colors' => ['ff0000', '008000', '0000ff', 'ffa500', 'e94190', '982fff', '72c3b1', 'f07f16', 'bdd002', '7b7b7b', '000000', 'ffffff'],                       
+    // プレイヤーカラー（12色定義）
+    'player_colors' => [
+        'ff0000', // 赤
+        '008000', // 緑
+        '0000ff', // 青
+        'ffa500', // オレンジ
+        'e94190', // ピンク
+        '982fff', // 紫
+        '72c3b1', // ターコイズ
+        'f07f16', // オレンジ2
+        'bdd002', // 黄緑
+        '7b7b7b', // グレー
+        '000000', // 黒
+        'ffffff', // 白
+    ],
 
-    // Favorite colors support : if set to "true", support attribution of favorite colors based on player's preferences (see reattributeColorsBasedOnPreferences PHP method)
-    // NB: this parameter is used only to flag games supporting this feature; you must use (or not use) reattributeColorsBasedOnPreferences PHP method to actually enable or disable the feature.
+    // お気に入りカラー機能を有効化
     'favorite_colors_support' => true,
 
-    // When doing a rematch, the player order is swapped using a "rotation" so the starting player is not the same
-    // If you want to disable this, set this to true
+    // 再戦時のプレイヤー順ローテーションを無効化するか
     'disable_player_order_swap_on_rematch' => false,
 
-    // Game interface width range (pixels)
-    // Note: game interface = space on the left side, without the column on the right
+    // ゲーム画面の最小幅（ピクセル）
+    // 320～740の範囲で設定可能。小さいほどモバイル対応が良い
     'game_interface_width' => [
-        // Minimum width
-        //  default: 740
-        //  maximum possible value: 740 (ie: your game interface should fit with a 740px width (correspond to a 1024px screen)
-        //  minimum possible value: 320 (the lowest value you specify, the better the display is on mobile)
         'min' => 740,
     ],
 
-    // Flag to enable 3D mode (adds a 3D button to the menu)
-    // Enable this only if your game functions correctly in 3D
+    // 3Dモードを有効化（ゲームが3Dで正しく動作する場合のみtrue）
     'enable_3d' => false,
 ];

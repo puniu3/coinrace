@@ -1,68 +1,64 @@
 /**
- *------
- * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
- * CoinRace implementation : © <Your name here> <Your email address here>
+ * CoinRace - ユーザーインターフェース
  *
- * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
- * See http://en.boardgamearena.com/#!doc/Studio for more information.
- * -----
- *
- * coinrace.js
- *
- * CoinRace user interface script
- * 
- * In this file, you are describing the logic of your user interface, in Javascript language.
- *
+ * @author <Your name here> <Your email address here>
+ * @copyright Board Game Arena
+ * @see http://en.boardgamearena.com/#!doc/Studio
  */
 
 define([
-    "dojo","dojo/_base/declare",
+    "dojo",
+    "dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter"
 ],
 function (dojo, declare, gamegui, counter) {
     return declare("bgagame.coinrace", ebg.core.gamegui, {
-        constructor: function(){
+
+        /**
+         * コンストラクタ
+         * UIのグローバル変数を初期化
+         */
+        constructor: function() {
             console.log('coinrace constructor');
-              
-            // Here, you can init the global variables of your user interface
-            // Example:
-            // this.myGlobalValue = 0;
 
+            // グローバル変数の初期化
+            // 例: this.myGlobalValue = 0;
         },
-        
-        /*
-            setup:
-            
-            This method must set up the game user interface according to current game situation specified
-            in parameters.
-            
-            The method is called each time the game interface is displayed to a player, ie:
-            _ when the game starts
-            _ when a player refreshes the game page (F5)
-            
-            "gamedatas" argument contains all datas retrieved by your "getAllDatas" PHP method.
-        */
-        
-        setup: function( gamedatas )
-        {
-            console.log( "Starting game setup" );
 
-            // Example to add a div on the game area
+        /**
+         * ゲーム画面のセットアップ
+         *
+         * ゲーム画面が表示される度に呼び出される:
+         * - ゲーム開始時
+         * - プレイヤーがページをリフレッシュ時(F5)
+         *
+         * @param {Object} gamedatas - getAllDatas()で取得したゲームデータ
+         */
+        setup: function(gamedatas) {
+            console.log("Starting game setup");
+
+            // ゲームエリアにプレイヤーテーブルを追加
             this.getGameAreaElement().insertAdjacentHTML('beforeend', `
                 <div id="player-tables"></div>
             `);
-            
-            // Setting up player boards
+
+            // プレイヤーボードのセットアップ
             Object.values(gamedatas.players).forEach(player => {
-                // example of setting up players boards
+                // プレイヤーパネルにエネルギーカウンターを追加
                 this.getPlayerPanelElement(player.id).insertAdjacentHTML('beforeend', `
                     <span id="energy-player-counter-${player.id}"></span> Energy
                 `);
-                const counter = new ebg.counter();
-                counter.create(`energy-player-counter-${player.id}`, { value: player.energy, playerCounter: 'energy', playerId: player.id });
 
-                // example of adding a div for each player
+                // エネルギーカウンターを作成
+                const energyCounter = new ebg.counter();
+                energyCounter.create(`energy-player-counter-${player.id}`, {
+                    value: player.energy,
+                    playerCounter: 'energy',
+                    playerId: player.id
+                });
+
+                // 各プレイヤーのテーブルエリアを追加
                 document.getElementById('player-tables').insertAdjacentHTML('beforeend', `
                     <div id="player-table-${player.id}">
                         <strong>${player.name}</strong>
@@ -70,172 +66,177 @@ function (dojo, declare, gamegui, counter) {
                     </div>
                 `);
             });
-            
-            // TODO: Set up your game interface here, according to "gamedatas"
-            
- 
-            // Setup game notifications to handle (see "setupNotifications" method below)
+
+            // TODO: gamedatasに基づいてゲーム画面をセットアップ
+            // 例: カード、ボード、その他のゲーム要素の配置
+
+            // 通知ハンドラーのセットアップ
             this.setupNotifications();
 
-            console.log( "Ending game setup" );
+            console.log("Ending game setup");
         },
-       
 
-        ///////////////////////////////////////////////////
-        //// Game & client states
-        
-        // onEnteringState: this method is called each time we are entering into a new game state.
-        //                  You can use this method to perform some user interface changes at this moment.
-        //
-        onEnteringState: function( stateName, args )
-        {
-            console.log( 'Entering state: '+stateName, args );
-            
-            switch( stateName )
-            {
-            
-            /* Example:
-            
-            case 'myGameState':
-            
-                // Show some HTML block at this game state
-                dojo.style( 'my_html_block_id', 'display', 'block' );
-                
-                break;
-           */
-           
-           
-            case 'dummy':
-                break;
+
+        // ========================================
+        // ゲーム状態管理
+        // ========================================
+
+        /**
+         * ゲーム状態突入時の処理
+         *
+         * 新しいゲーム状態に入る度に呼び出される
+         *
+         * @param {string} stateName - 状態名
+         * @param {Object} args - 状態引数
+         */
+        onEnteringState: function(stateName, args) {
+            console.log('Entering state: ' + stateName, args);
+
+            switch (stateName) {
+                // 例:
+                // case 'myGameState':
+                //     // この状態でHTMLブロックを表示
+                //     dojo.style('my_html_block_id', 'display', 'block');
+                //     break;
+
+                case 'dummy':
+                    break;
             }
         },
 
-        // onLeavingState: this method is called each time we are leaving a game state.
-        //                 You can use this method to perform some user interface changes at this moment.
-        //
-        onLeavingState: function( stateName )
-        {
-            console.log( 'Leaving state: '+stateName );
-            
-            switch( stateName )
-            {
-            
-            /* Example:
-            
-            case 'myGameState':
-            
-                // Hide the HTML block we are displaying only during this game state
-                dojo.style( 'my_html_block_id', 'display', 'none' );
-                
-                break;
-           */
-           
-           
-            case 'dummy':
-                break;
-            }               
-        }, 
+        /**
+         * ゲーム状態退出時の処理
+         *
+         * ゲーム状態を抜ける度に呼び出される
+         *
+         * @param {string} stateName - 状態名
+         */
+        onLeavingState: function(stateName) {
+            console.log('Leaving state: ' + stateName);
 
-        // onUpdateActionButtons: in this method you can manage "action buttons" that are displayed in the
-        //                        action status bar (ie: the HTML links in the status bar).
-        //        
-        onUpdateActionButtons: function( stateName, args )
-        {
-            console.log( 'onUpdateActionButtons: '+stateName, args );
-                      
-            if( this.isCurrentPlayerActive() )
-            {            
-                switch( stateName )
-                {
-                 case 'PlayerTurn':    
-                    const playableCardsIds = args.playableCardsIds; // returned by the argPlayerTurn
+            switch (stateName) {
+                // 例:
+                // case 'myGameState':
+                //     // この状態で表示していたHTMLブロックを非表示
+                //     dojo.style('my_html_block_id', 'display', 'none');
+                //     break;
 
-                    // Add test action buttons in the action status bar, simulating a card click:
-                    playableCardsIds.forEach(
-                        cardId => this.statusBar.addActionButton(_('Play card with id ${card_id}').replace('${card_id}', cardId), () => this.onCardClick(cardId))
-                    ); 
-
-                    this.statusBar.addActionButton(_('Pass'), () => this.bgaPerformAction("actPass"), { color: 'secondary' }); 
+                case 'dummy':
                     break;
+            }
+        },
+
+        /**
+         * アクションボタンの更新
+         *
+         * アクションステータスバーに表示するボタンを管理
+         *
+         * @param {string} stateName - 状態名
+         * @param {Object} args - 状態引数
+         */
+        onUpdateActionButtons: function(stateName, args) {
+            console.log('onUpdateActionButtons: ' + stateName, args);
+
+            // 現在のプレイヤーがアクティブな場合のみ
+            if (this.isCurrentPlayerActive()) {
+                switch (stateName) {
+                    case 'PlayerTurn':
+                        const playableCardsIds = args.playableCardsIds;
+
+                        // プレイ可能なカード毎にボタンを追加（テスト用）
+                        playableCardsIds.forEach(cardId => {
+                            const label = _('Play card with id ${card_id}').replace('${card_id}', cardId);
+                            this.statusBar.addActionButton(label, () => this.onCardClick(cardId));
+                        });
+
+                        // パスボタンを追加
+                        this.statusBar.addActionButton(
+                            _('Pass'),
+                            () => this.bgaPerformAction("actPass"),
+                            { color: 'secondary' }
+                        );
+                        break;
                 }
             }
-        },        
-
-        ///////////////////////////////////////////////////
-        //// Utility methods
-        
-        /*
-        
-            Here, you can defines some utility methods that you can use everywhere in your javascript
-            script.
-        
-        */
+        },
 
 
-        ///////////////////////////////////////////////////
-        //// Player's action
-        
-        /*
-        
-            Here, you are defining methods to handle player's action (ex: results of mouse click on 
-            game objects).
-            
-            Most of the time, these methods:
-            _ check the action is possible at this game state.
-            _ make a call to the game server
-        
-        */
-        
-        // Example:
-        
-        onCardClick: function( card_id )
-        {
-            console.log( 'onCardClick', card_id );
+        // ========================================
+        // ユーティリティメソッド
+        // ========================================
 
-            this.bgaPerformAction("actPlayCard", { 
+        // TODO: ここに共通で使用するユーティリティメソッドを定義
+        // 例: カード移動、アニメーション、計算処理など
+
+
+        // ========================================
+        // プレイヤーアクション
+        // ========================================
+
+        /**
+         * カードクリック時の処理
+         *
+         * @param {number} card_id - クリックされたカードのID
+         */
+        onCardClick: function(card_id) {
+            console.log('onCardClick', card_id);
+
+            // サーバーにアクションを送信
+            this.bgaPerformAction("actPlayCard", {
                 card_id,
-            }).then(() =>  {                
-                // What to do after the server call if it succeeded
-                // (most of the time, nothing, as the game will react to notifs / change of state instead)
-            });        
-        },    
+            }).then(() => {
+                // サーバー呼び出し成功後の処理
+                // 通常は通知や状態変化で対応するため、ここは空でよい
+            });
+        },
 
-        
-        ///////////////////////////////////////////////////
-        //// Reaction to cometD notifications
 
-        /*
-            setupNotifications:
-            
-            In this method, you associate each of your game notifications with your local method to handle it.
-            
-            Note: game notification names correspond to "notifyAllPlayers" and "notifyPlayer" calls in
-                  your coinrace.game.php file.
-        
-        */
-        setupNotifications: function()
-        {
-            console.log( 'notifications subscriptions setup' );
-            
-            // automatically listen to the notifications, based on the `notif_xxx` function on this class.
+        // ========================================
+        // 通知処理（CometD）
+        // ========================================
+
+        /**
+         * 通知ハンドラーのセットアップ
+         *
+         * ゲーム通知とローカルメソッドを関連付ける
+         * PHPの notifyAllPlayers/notifyPlayer に対応
+         */
+        setupNotifications: function() {
+            console.log('notifications subscriptions setup');
+
+            // notif_xxx という名前のメソッドを自動検出して登録
             this.bgaSetupPromiseNotifications();
-        },  
-        
-        // TODO: from this point and below, you can write your game notifications handling methods
-        
+        },
+
+        // TODO: 以下に通知ハンドラーメソッドを定義
+
+        /**
+         * カードプレイ通知の処理例
+         *
+         * @param {Object} args - 通知引数
+         */
         /*
-        Example:
-        
-        notif_cardPlayed: async function( args )
-        {
-            console.log( 'notif_cardPlayed' );
-            console.log( args );
-            
-            // Note: args contains the arguments specified during you "notifyAllPlayers" / "notifyPlayer" PHP call
-            
-            // TODO: play the card in the user interface.
-        },    
-        
+        notif_cardPlayed: async function(args) {
+            console.log('notif_cardPlayed', args);
+
+            // argsにはPHPのnotifyAllPlayers/notifyPlayerで指定した引数が含まれる
+
+            // TODO: UIでカードをプレイする処理を実装
+            // 例: カードアニメーション、カウンター更新など
+        },
         */
-   });             
+
+        /**
+         * パス通知の処理例
+         *
+         * @param {Object} args - 通知引数
+         */
+        /*
+        notif_pass: async function(args) {
+            console.log('notif_pass', args);
+
+            // TODO: パス時のUI処理を実装
+        },
+        */
+    });
 });
