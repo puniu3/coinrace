@@ -1,72 +1,103 @@
 /**
- *------
- * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
- * CoinRace implementation : © <Your name here> <Your email address here>
+ * CoinRace - スタイルシート
  *
- * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
- * See http://en.boardgamearena.com/#!doc/Studio for more information.
- * -----
+ * @author <Your name here> <Your email address here>
+ * @copyright Board Game Arena
+ * @see http://en.boardgamearena.com/#!doc/Studio
  *
- * coinrace.css
+ * このCSSファイルの用途:
+ * 1. ゲーム全体のレイアウト定義（ボード、プレイヤーエリア、デッキ等の配置）
+ * 2. CSSスプライトの作成（複数の画像を1つの画像ファイルにまとめて効率的に表示）
+ * 3. JavaScriptから動的に追加/削除されるCSSクラスの定義
  *
- * CoinRace stylesheet
- *
+ * 注意:
+ * - @import ディレクティブは使用不可
+ * - 本番環境ではコメントが削除され圧縮される
  */
 
-/*
-    This is the CSS stylesheet of your game User Interface.
-    
-    Styles defined on this file will be applied to the HTML elements you define in your
-    HTML template (coinrace_coinrace.tpl), and to HTML elements you create dynamically
-    (in coinrace.js).
-    
-    Usually, you are using CSS to:
-    
-    1°) define the overall layout of your game
-        (ex: place the board on the top left, place player's hand beside, place the deck on the right, ...).
 
-    2°) create your CSS-sprites:
-        All images of your games should be gathered into a small number of image files. Then, using
-        background-image and background-position CSS properties, you create HTML blocks that can 
-        display these images correctly (see example below).
-    
-    3°) ... anything else:
-        It is really easy to add and remove CSS classes dynamically from your Javascript with
-        dojo.addClass and dojo.removeClass. It is also easy to check if an element has a class
-        (dojo.hasClass) or to get all elements with a specific class (dojo.query). This is why,
-        very often, using CSS classes for the logic of your user interface allow you to do complex
-        thing easily.
-        
-        
-     Note: on the production platform, this file will be compressed and comments will be removed.
-           Consequently, don't hesitate to put as many comments as necessary.
+/* ========================================
+   レイアウト
+   ======================================== */
+
+/* TODO: ゲームのレイアウトをここに定義 */
+/* 例:
+#game-board {
+    float: left;
+    width: 600px;
+    height: 600px;
+}
+
+#player-hand {
+    margin-top: 20px;
+}
 */
 
 
-/* Note: you must not use any @import directive */
+/* ========================================
+   CSSスプライト
+   ======================================== */
+
+/* CSSスプライトの例:
+ * tokens.png（40x20px）に白トークン（左）と黒トークン（右、各20x20px）が含まれる場合
+ *
+ * .token {
+ *     width: 20px;
+ *     height: 20px;
+ *     background-image: url('img/tokens.png');
+ *     background-repeat: no-repeat;
+ * }
+ *
+ * .token-white {
+ *     background-position: 0px 0px;
+ * }
+ *
+ * .token-black {
+ *     background-position: -20px 0px;
+ * }
+ */
 
 
-/********* You can start writing your CSS below this line: **********/
+/* ========================================
+   ゲーム要素
+   ======================================== */
+
+/* TODO: カード、トークン、ボード等のスタイルをここに定義 */
 
 
-/*
-    Example of CSS sprites (a black token and a white token, 20x20px each, embedded in the same "tokens.png" 40x20px image):
+/* ========================================
+   アニメーション
+   ======================================== */
 
-    .white_token {
-        background-image: url('img/tokens.png');
-        background-position: 0px 0px;
+/* TODO: トランジションやアニメーションをここに定義 */
+/* 例:
+@keyframes slide-in {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
     }
-    .black_token {
-        background-image: url('img/tokens.png');
-        background-position: -20px 0px;
+    to {
+        transform: translateX(0);
+        opacity: 1;
     }
-    .token {
-        width: 20px;
-        height: 20px;
-        background-repeat: none;
-    }
+}
+
+.card-enter {
+    animation: slide-in 0.3s ease-out;
+}
 */
 
 
+/* ========================================
+   レスポンシブ対応
+   ======================================== */
 
-
+/* TODO: モバイル対応のスタイルをここに定義 */
+/* 例:
+@media (max-width: 768px) {
+    #game-board {
+        width: 100%;
+        height: auto;
+    }
+}
+*/
