@@ -3,97 +3,74 @@ declare(strict_types=1);
 
 namespace Bga\Games\CoinRace\Core;
 
-/* * ====== Types / DTOs (Pythonのdataclass相当) ====== 
- * 本来は別ファイルに分けるのもありですが、
- * 視認性を良くするためここにまとめています。
+/**
+ * GameLogic - Functional Core
+ *
+ * Pure functions for game logic. No side effects, no database access.
+ * This is the functional core of the functional core / imperative shell architecture.
  */
-
-class DrawAction {
-    // マーカークラス（中身なし）
-}
-
-class CoinAcquired {
-    public function __construct(
-        public int $player_id,
-        public int $amount
-    ) {}
-}
-
-class State {
-    /**
-     * @param int[] $players Index based scores [0 => score, 1 => score]
-     * @param int $active PlayerIndex
-     * @param int[] $deck List of coins
-     * @param object[] $msg List of Messages
-     */
-    public function __construct(
-        public array $players,
-        public int $active,
-        public array $deck,
-        public array $msg
-    ) {}
-}
-
-/* * ====== Logic (Pure Functions) ====== 
- */
-
 class GameLogic
 {
     /**
-     * Python: create_initial_state()
+     * Create initial game state
+     *
+     * @return State Initial state with shuffled deck
      */
     public static function create_initial_state(): State
     {
         $CARDS = [1, 1, 1, 1, 2, 2, 2, 3, 3, 3];
-        
-        // PHPにはsampleがないので、shuffleして使う
+
+        // Shuffle the deck
         $deck = $CARDS;
         shuffle($deck);
 
         return new State(
-            players: [0, 0], // player_id 0 and 1
-            active: 0,
-            deck: $deck,
-            msg: []
+            players: [0, 0], // Initial scores for player 0 and 1
+            active: 0,       // Player 0 starts
+            deck: $deck,     // Shuffled deck
+            msg: []          // No messages initially
         );
     }
 
     /**
-     * Python: advance(state, action)
+     * Advance game state with an action
+     *
+     * Pure function: takes current state and action, returns new state.
+     * Does not modify the input state.
+     *
+     * @param State $state Current game state
+     * @param object $action Action to perform
+     * @return State New game state after applying action
      */
     public static function advance(State $state, object $action): State
     {
-        // Pythonの replace のように、元のStateを変更せず新しいStateを作るため clone する
+        // Clone state to avoid mutations
         $nextState = clone $state;
-        
-        // メッセージはターンごとにリセットされる設計のようなので空にする
-        // (Pythonコードの Game.execute で replace(s, msg=[]) している部分の代用)
+
+        // Reset messages (messages are per-turn)
         $nextState->msg = [];
 
         if ($action instanceof DrawAction) {
             if (empty($nextState->deck)) {
-                return $state; // デッキ切れなら何もしない（あるいは例外）
+                return $state; // No cards left, return unchanged state
             }
 
-            // coin = state.deck[0]
+            // Draw top card
             $coin = $nextState->deck[0];
-            
-            // deck = state.deck[1:]
-            // array_sliceで先頭を削る
+
+            // Remove drawn card from deck
             $nextState->deck = array_slice($nextState->deck, 1);
 
-            // Update scores
-            // players = [p + coin if i == state.active else p ...]
+            // Update active player's score
             $nextState->players[$nextState->active] += $coin;
 
-            // Add Message
+            // Add message about coin acquisition
             $nextState->msg[] = new CoinAcquired(
                 player_id: $nextState->active,
                 amount: $coin
             );
 
-            // Switch Active Player
-            // active = (state.active + 1) % 2
+            // Switch to next player
             $nextState->active = ($nextState->active + 1) % 2;
 
             return $nextState;
@@ -103,7 +80,10 @@ class GameLogic
     }
 
     /**
-     * Python: is_over(state)
+     * Check if game is over
+     *
+     * @param State $state Current game state
+     * @return bool True if game is over (deck is empty)
      */
     public static function is_over(State $state): bool
     {
