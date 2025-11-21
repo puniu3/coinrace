@@ -117,6 +117,28 @@ class Game extends \Bga\GameFramework\Table
     }
 
     // ========================================
+    // Action Logic
+    // ========================================
+
+    public function actDraw(): void
+    {
+        $this->gamestate->checkPossibleAction('actDraw');
+
+        $playerId = (int) $this->getCurrentPlayerId();
+
+        // State Class インスタンスを作成してアクションを実行
+        // ステートID 10 は PlayerTurn クラス
+        // ここでは単純化のため直接インスタンス化するが、
+        // 将来的に他のStateのアクションが増えるなら分岐が必要
+
+        $playerTurnState = new PlayerTurn($this);
+        $nextStateClass = $playerTurnState->actDraw($playerId);
+
+        // 状態遷移
+        $this->gamestate->nextState($nextStateClass);
+    }
+
+    // ========================================
     // Functional Core Integration / Helpers
     // ========================================
 
