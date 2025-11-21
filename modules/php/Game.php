@@ -12,22 +12,18 @@ declare(strict_types=1);
 
 namespace Bga\Games\CoinRace;
 
+use Bga\Games\CoinRace\Core\GameLogic;
+use Bga\Games\CoinRace\Core\State;
+use Bga\Games\CoinRace\Core\DrawAction;
 use Bga\Games\CoinRace\States\PlayerTurn;
 use Bga\GameFramework\Components\Counters\PlayerCounter;
 
 class Game extends \Bga\GameFramework\Table
 {
     // 定数定義
-    private const DEFAULT_PLAYER_ENERGY = 2;
     private const GAME_END_STATE = 99;
-    private const DEFAULT_DEBUG_STATE = 3;
+    private const DEFAULT_DEBUG_STATE = 10;
     private const DEFAULT_AUTO_PLAY_MOVES = 50;
-
-    // カードタイプ定義
-    public static array $CARD_TYPES;
-
-    // プレイヤーエネルギーカウンター
-    public PlayerCounter $playerEnergy;
 
     /**
      * コンストラクタ
@@ -39,32 +35,80 @@ class Game extends \Bga\GameFramework\Table
 
         // ゲーム状態ラベルの初期化（空でも必須）
         $this->initGameStateLabels([]);
+    }
 
-        // プレイヤーエネルギーカウンターの作成
-        $this->playerEnergy = $this->counterFactory->createPlayerCounter('energy');
+    // ========================================
+    // Functional Core Integration
+    // ========================================
 
-        // カードタイプの定義
-        self::$CARD_TYPES = [
-            1 => ['card_name' => clienttranslate('Troll')],
-            2 => ['card_name' => clienttranslate('Goblin')],
-        ];
+    /**
+     * Load current game state from DB
+     *
+     * Imperative shell: Load data from DB and construct functional State object
+     */
+    public function loadState(): State
+    {
+        // Load player scores (indexed by player_id)
+        $playersData = $this->getCollectionFromDb(
+            "SELECT `player_id`, `player_score`, `player_no` FROM `player` ORDER BY `player_no`"
+        );
 
-        // 通知デコレーター（任意）
-        // プレイヤー名やカード名を自動補完する場合に有効化
-        /*
-        $this->notify->addDecorator(function(string $message, array $args) {
-            if (isset($args['player_id']) && !isset($args['player_name']) && str_contains($message, '${player_name}')) {
-                $args['player_name'] = $this->getPlayerNameById($args['player_id']);
-            }
+        // Convert to array indexed by player_no (0, 1)
+        $players = [0, 0];
+        $playerIdToIndex = [];
+        foreach ($playersData as $player_id => $player) {
+            $index = (int)$player['player_no'];
+            $players[$index] = (int)$player['player_score'];
+            $playerIdToIndex[$player_id] = $index;
+        }
 
-            if (isset($args['card_id']) && !isset($args['card_name']) && str_contains($message, '${card_name}')) {
-                $args['card_name'] = self::$CARD_TYPES[$args['card_id']]['card_name'];
-                $args['i18n'][] = 'card_name';
-            }
+        // Get current active player ID and convert to index
+        $activePlayerId = (int)$this->getActivePlayerId();
+        $active = $playerIdToIndex[$activePlayerId];
 
-            return $args;
-        });
-        */
+        // Load deck (ordered by position)
+        $deckData = $this->getCollectionFromDb(
+            "SELECT `card_value` FROM `deck` ORDER BY `card_position`"
+        );
+        $deck = array_map(fn($card) => (int)$card['card_value'], array_values($deckData));
+
+        return new State($players, $active, $deck, []);
+    }
+
+    /**
+     * Save game state to DB
+     *
+     * Imperative shell: Save State object data back to DB
+     */
+    public function saveState(State $state): void
+    {
+        // Update player scores
+        $playersData = $this->getCollectionFromDb(
+            "SELECT `player_id`, `player_no` FROM `player` ORDER BY `player_no`"
+        );
+
+        foreach ($playersData as $player_id => $player) {
+            $index = (int)$player['player_no'];
+            $score = $state->players[$index];
+            $this->DbQuery("UPDATE `player` SET `player_score` = $score WHERE `player_id` = $player_id");
+        }
+
+        // Update deck (remove drawn cards)
+        $this->DbQuery("DELETE FROM `deck`");
+        foreach ($state->deck as $position => $value) {
+            $this->DbQuery("INSERT INTO `deck` (`card_value`, `card_position`) VALUES ($value, $position)");
+        }
+    }
+
+    /**
+     * Get player_id from player index (0 or 1)
+     */
+    public function getPlayerIdByIndex(int $index): int
+    {
+        $playersData = $this->getCollectionFromDb(
+            "SELECT `player_id`, `player_no` FROM `player` WHERE `player_no` = $index"
+        );
+        return (int)array_key_first($playersData);
     }
 
     /**
@@ -76,8 +120,12 @@ class Game extends \Bga\GameFramework\Table
      */
     public function getGameProgression(): int
     {
-        // TODO: ゲーム進行度の計算ロジックを実装
-        return 0;
+        $state = $this->loadState();
+        $totalCards = 10;
+        $remainingCards = count($state->deck);
+        $cardsDrawn = $totalCards - $remainingCards;
+
+        return (int)(($cardsDrawn / $totalCards) * 100);
     }
 
     /**
@@ -109,16 +157,19 @@ class Game extends \Bga\GameFramework\Table
         $result = [];
         $current_player_id = (int) $this->getCurrentPlayerId();
 
-        // プレイヤー情報を取得（dbmodel.sqlで追加したフィールドも取得可能）
+        // プレイヤー情報を取得
         $result['players'] = $this->getCollectionFromDb(
-            "SELECT `player_id` `id`, `player_score` `score` FROM `player`"
+            "SELECT `player_id` `id`, `player_score` `score`, `player_no` FROM `player`"
         );
 
-        // プレイヤーエネルギーを結果に追加
-        $this->playerEnergy->fillResult($result);
+        // Load game state
+        $state = $this->loadState();
 
-        // TODO: その他のゲーム状況データを追加
-        // 例: カード、ボード状態など（$current_player_idから見える情報のみ）
+        // Deck size (not showing the cards themselves, just the count)
+        $result['deck_size'] = count($state->deck);
+
+        // Active player index
+        $result['active_player_index'] = $state->active;
 
         return $result;
     }
@@ -134,31 +185,26 @@ class Game extends \Bga\GameFramework\Table
      */
     protected function setupNewGame($players, $options = []): string
     {
-        // プレイヤーエネルギーを初期化
-        $this->playerEnergy->initDb(
-            array_keys($players),
-            initialValue: self::DEFAULT_PLAYER_ENERGY
-        );
-
         // プレイヤーカラーを設定
         $gameinfos = $this->getGameinfos();
         $default_colors = $gameinfos['player_colors'];
 
         $query_values = [];
+        $player_no = 0;
         foreach ($players as $player_id => $player) {
-            $query_values[] = vsprintf("('%s', '%s', '%s', '%s', '%s')", [
+            $query_values[] = vsprintf("('%s', '%s', '%s', '%s', '%s', '%s')", [
                 $player_id,
                 array_shift($default_colors),
                 $player['player_canal'],
                 addslashes($player['player_name']),
                 addslashes($player['player_avatar']),
+                $player_no++,  // Assign player_no sequentially (0, 1, ...)
             ]);
         }
 
         // プレイヤーをデータベースに登録
-        // dbmodel.sqlで追加フィールドがある場合はここで初期化
         static::DbQuery(sprintf(
-            "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar) VALUES %s",
+            "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar, player_no) VALUES %s",
             implode(',', $query_values)
         ));
 
@@ -170,11 +216,27 @@ class Game extends \Bga\GameFramework\Table
         // $this->tableStats->init('table_teststat1', 0);
         // $this->playerStats->init('player_teststat1', 0);
 
-        // TODO: 初期ゲーム状況のセットアップ
-        // 例: カードデッキの作成、ボードの初期化など
+        // ========================================
+        // Functional Core: Create initial state
+        // ========================================
+        $initialState = GameLogic::create_initial_state();
 
-        // 最初のプレイヤーをアクティブ化
-        $this->activeNextPlayer();
+        // ========================================
+        // Imperative Shell: Save state to DB
+        // ========================================
+
+        // Save deck to database
+        foreach ($initialState->deck as $position => $value) {
+            $this->DbQuery("INSERT INTO `deck` (`card_value`, `card_position`) VALUES ($value, $position)");
+        }
+
+        // Set initial scores (already 0 by default, so no need to update)
+        // Player scores in $initialState->players are [0, 0]
+
+        // Active player: Set first player as active
+        // The initial state has active=0, so we need to activate player_no=0
+        $firstPlayerId = $this->getPlayerIdByIndex(0);
+        $this->gamestate->changeActivePlayer($firstPlayerId);
 
         return PlayerTurn::class;
     }

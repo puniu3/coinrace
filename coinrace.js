@@ -38,37 +38,25 @@ function (dojo, declare, gamegui, counter) {
         setup: function(gamedatas) {
             console.log("Starting game setup");
 
-            // ゲームエリアにプレイヤーテーブルを追加
+            // ゲームエリアにゲーム情報を追加
             this.getGameAreaElement().insertAdjacentHTML('beforeend', `
-                <div id="player-tables"></div>
+                <div id="game-area">
+                    <div id="deck-info">
+                        <h3>Deck</h3>
+                        <div>Cards remaining: <span id="deck-size">${gamedatas.deck_size}</span></div>
+                    </div>
+                    <div id="player-scores"></div>
+                </div>
             `);
 
-            // プレイヤーボードのセットアップ
+            // プレイヤースコアの表示
             Object.values(gamedatas.players).forEach(player => {
-                // プレイヤーパネルにエネルギーカウンターを追加
-                this.getPlayerPanelElement(player.id).insertAdjacentHTML('beforeend', `
-                    <span id="energy-player-counter-${player.id}"></span> Energy
-                `);
-
-                // エネルギーカウンターを作成
-                const energyCounter = new ebg.counter();
-                energyCounter.create(`energy-player-counter-${player.id}`, {
-                    value: player.energy,
-                    playerCounter: 'energy',
-                    playerId: player.id
-                });
-
-                // 各プレイヤーのテーブルエリアを追加
-                document.getElementById('player-tables').insertAdjacentHTML('beforeend', `
-                    <div id="player-table-${player.id}">
-                        <strong>${player.name}</strong>
-                        <div>Player zone content goes here</div>
+                document.getElementById('player-scores').insertAdjacentHTML('beforeend', `
+                    <div class="player-score">
+                        <strong>${player.name}:</strong> <span id="score-${player.id}">${player.score}</span> points
                     </div>
                 `);
             });
-
-            // TODO: gamedatasに基づいてゲーム画面をセットアップ
-            // 例: カード、ボード、その他のゲーム要素の配置
 
             // 通知ハンドラーのセットアップ
             this.setupNotifications();
@@ -141,19 +129,10 @@ function (dojo, declare, gamegui, counter) {
             if (this.isCurrentPlayerActive()) {
                 switch (stateName) {
                     case 'PlayerTurn':
-                        const playableCardsIds = args.playableCardsIds;
-
-                        // プレイ可能なカード毎にボタンを追加（テスト用）
-                        playableCardsIds.forEach(cardId => {
-                            const label = _('Play card with id ${card_id}').replace('${card_id}', cardId);
-                            this.statusBar.addActionButton(label, () => this.onCardClick(cardId));
-                        });
-
-                        // パスボタンを追加
+                        // Draw coin button
                         this.statusBar.addActionButton(
-                            _('Pass'),
-                            () => this.bgaPerformAction("actPass"),
-                            { color: 'secondary' }
+                            _('Draw Coin'),
+                            () => this.onDrawCoin()
                         );
                         break;
                 }
@@ -174,19 +153,14 @@ function (dojo, declare, gamegui, counter) {
         // ========================================
 
         /**
-         * カードクリック時の処理
-         *
-         * @param {number} card_id - クリックされたカードのID
+         * Draw coin action
          */
-        onCardClick: function(card_id) {
-            console.log('onCardClick', card_id);
+        onDrawCoin: function() {
+            console.log('onDrawCoin');
 
-            // サーバーにアクションを送信
-            this.bgaPerformAction("actPlayCard", {
-                card_id,
-            }).then(() => {
-                // サーバー呼び出し成功後の処理
-                // 通常は通知や状態変化で対応するため、ここは空でよい
+            // Send action to server
+            this.bgaPerformAction("actDrawCoin").then(() => {
+                // Success - handled by notifications
             });
         },
 
@@ -208,35 +182,26 @@ function (dojo, declare, gamegui, counter) {
             this.bgaSetupPromiseNotifications();
         },
 
-        // TODO: 以下に通知ハンドラーメソッドを定義
-
         /**
-         * カードプレイ通知の処理例
+         * Coin acquired notification handler
          *
-         * @param {Object} args - 通知引数
+         * @param {Object} args - Notification arguments
          */
-        /*
-        notif_cardPlayed: async function(args) {
-            console.log('notif_cardPlayed', args);
+        notif_coinAcquired: async function(args) {
+            console.log('notif_coinAcquired', args);
 
-            // argsにはPHPのnotifyAllPlayers/notifyPlayerで指定した引数が含まれる
+            // Update player score
+            const scoreElement = document.getElementById('score-' + args.player_id);
+            if (scoreElement) {
+                scoreElement.textContent = args.score;
+            }
 
-            // TODO: UIでカードをプレイする処理を実装
-            // 例: カードアニメーション、カウンター更新など
+            // Update deck size (decrease by 1)
+            const deckSizeElement = document.getElementById('deck-size');
+            if (deckSizeElement) {
+                const currentSize = parseInt(deckSizeElement.textContent);
+                deckSizeElement.textContent = currentSize - 1;
+            }
         },
-        */
-
-        /**
-         * パス通知の処理例
-         *
-         * @param {Object} args - 通知引数
-         */
-        /*
-        notif_pass: async function(args) {
-            console.log('notif_pass', args);
-
-            // TODO: パス時のUI処理を実装
-        },
-        */
     });
 });
